@@ -179,15 +179,27 @@ async function detectOS(ua: string): Promise<string> {
   return "Unknown OS";
 }
 
-function detectDevice(): DeviceInfo {
+async function detectDevice(): Promise<DeviceInfo> {
   const ua = navigator.userAgent;
   const w = screen.width;
   const h = screen.height;
   const ratio = window.devicePixelRatio || 1;
-  const os = detectOS(ua);
+  const os = await detectOS(ua);
   let model = "Unknown Device";
 
-  if (/iPhone/.test(ua)) {
+  // Try Client Hints model for Android
+  if (/Android/.test(ua) && "userAgentData" in navigator && (navigator as any).userAgentData) {
+    try {
+      const uaData = await (navigator as any).userAgentData.getHighEntropyValues(["model"]);
+      if (uaData.model) {
+        model = uaData.model;
+      } else {
+        model = resolveAndroidModel(ua, w, h);
+      }
+    } catch {
+      model = resolveAndroidModel(ua, w, h);
+    }
+  } else if (/iPhone/.test(ua)) {
     model = resolveIPhoneModel(w, h, Math.round(ratio));
   } else if (/iPad/.test(ua)) {
     model = "iPad";
