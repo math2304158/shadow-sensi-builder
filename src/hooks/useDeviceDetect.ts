@@ -121,7 +121,44 @@ function mapSamsungModel(code: string): string | null {
   return map[prefix] || null;
 }
 
-function detectOS(ua: string): string {
+async function detectOS(ua: string): Promise<string> {
+  // Try User-Agent Client Hints API first (accurate versions)
+  if ("userAgentData" in navigator && (navigator as any).userAgentData) {
+    try {
+      const uaData = await (navigator as any).userAgentData.getHighEntropyValues([
+        "platform",
+        "platformVersion",
+        "model",
+      ]);
+      const platform = uaData.platform || "";
+      const ver = uaData.platformVersion || "";
+
+      if (/iOS|iPhone|iPad/i.test(platform) || /iPhone|iPad/.test(ua)) {
+        // On iOS Safari, platformVersion may not be available via Client Hints
+        // but on Chromium-based browsers it is
+        if (ver) return `iOS ${ver}`;
+      }
+      if (/Android/i.test(platform)) {
+        if (ver) return `Android ${ver}`;
+      }
+      if (/macOS|Mac OS/i.test(platform)) {
+        if (ver) {
+          // macOS Client Hints returns major.minor.patch
+          return `macOS ${ver}`;
+        }
+      }
+      if (/Windows/i.test(platform)) {
+        if (ver) {
+          // Windows Client Hints: major >= 13 means Windows 11
+          const major = parseInt(ver.split(".")[0]);
+          if (major >= 13) return "Windows 11";
+          return "Windows 10";
+        }
+      }
+    } catch {}
+  }
+
+  // Fallback: parse UA string (may be frozen/inaccurate on newer OS versions)
   if (/iPhone|iPad/.test(ua)) {
     const match = ua.match(/OS (\d+)[_.](\d+)(?:[_.](\d+))?/);
     if (match) return `iOS ${match[1]}.${match[2]}${match[3] ? "." + match[3] : ""}`;
