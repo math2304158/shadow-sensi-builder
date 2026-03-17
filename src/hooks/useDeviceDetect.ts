@@ -240,7 +240,7 @@ export function useDeviceDetect() {
   const [device, setDevice] = useState<DeviceInfo | null>(null);
 
   useEffect(() => {
-    setDevice(detectDevice());
+    detectDevice().then(setDevice);
   }, []);
 
   return device;
